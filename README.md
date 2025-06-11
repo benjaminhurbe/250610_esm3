@@ -5,18 +5,29 @@ Este proyecto permite extraer embeddings y aplicar un análisis zero-shot a un d
 ## 📁 Estructura del proyecto
 
 250610_esm3/
+
 ├── data/
+
 │   └── A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv  # Archivo con las secuencias
+
 ├── DMS_ids/
+
 │   └── múltiples bases de datos de proteingym (*.csv)      # Bases de datos de DMS
+
 ├── reference_files/
+
 │   └── clinical_substitutions.csv                          # csv's referencia de ProteinGym
+
 │   └── clinical_indels.csv                                 # contienen la proteina target
+
 │   └── DMS_indels.csv                                      # de ensayos DMS de indels y sustituciones
+
 │   └── DMS_substitutions.csv                               # en esta base de datos se integró la de CR9114
+
 ├── scripts/
+
 │   └── 01_preprocces_embeddings.py                         # Script de extracción de embeddings
-├── embeddings_avg/                                         # Carpeta de salida con archivos .pt
+
 
 ## ⚙️ Requisitos
 
