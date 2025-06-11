@@ -1,0 +1,106 @@
+%% Diagrama de Flujo de la Arquitectura ESM3
+graph TD
+    subgraph "<b>1\. Entradas Multimodales por Track (L = Longitud de Secuencia)</b>"
+        subgraph padding[ ]
+        direction LR
+            A1["Secuencia<br>[L] Rango: 0-28"]
+            A2["Tokens Estructura (VQ-VAE)<br>[L] Rango: 0-4099"]
+            A3["Tokens Función (LSH)<br>[L x 8] Rango: 0-255"]
+            A4["Otras Pistas<br>(SS8, SASA, etc.)<br>[L]"]
+            A5["<b>Coordenadas Atómicas</b><br>(Backbone Frames)<br>[L x 3 x 3]"]
+        end
+    end
+
+    subgraph "<b>2\. Fusión de Embeddings (D_model = Dimensión del Embedding (1536))</b>"
+        subgraph padding2[ ]
+            subgraph padding4[ ]
+            B1["Conversión de tokens a embeddings aprendidos. <br><b>Dim: [L x D_model]x track</b>"]
+            B2["Suma Posicional de Embeddings de diferentes pistas <br><b>Dim: [L x D_model]</b>"]
+            end
+        end
+    end
+
+    subgraph "<b>3\. Tronco del Transformador ESM3</b>"
+        subgraph padding3[ ]
+        C1["Bloque Transformador 1<br>+ <b>Atención Geométrica</b><br>Salida: [L x D_model]"]
+        C2["Bloques Transformadores 2...N <br>Salida: [L x D_model]"]
+        C3["Estados Ocultos Finales<br><b>Dim: [L x D_model]</b>"]
+        end
+    end
+
+    subgraph "<b>4\. Cabezas de Predicción (MLPs): Logits + Softmax </b>"
+        direction LR
+        subgraph padding5[ ]
+        D1["Predicción<br>Secuencia<br><i>Salida: [L x V_sec(29)]</i>"]
+        D2["Predicción<br>Tokens Estructura<br><i>Salida: [L x V_struct (4100)]</i>"]
+        D3["Predicción<br>Tokens Función<br><i>Salida: [L x 8 x V_func (258)]</i>"]
+        D4["Predicción<br>Otras Pistas<br><i>Salida: [L x V_track]</i>"]
+        end
+    end
+
+    subgraph "<b>5\. Decodificadores (Modelos Separados)</b>"
+        subgraph padding6[ ]
+        E1["<b>Decodificador de Estructura</b><br>(Modelo Transformer)"]
+        E2["<b>Decodificador de Función</b><br>(Transformer Pequeño que invierte cuantización semántica)"]
+        end
+    end
+
+    subgraph "<b>6\. Salidas Finales Interpretables</b>"
+        direction LR
+        subgraph padding7[ ]
+        F1["Probabilidad de cada aminoácido en cada posición"]
+        F2["Coordenadas 3D<br>[L x 14 x 3]: Para cada residuo la posicion de su átomo pesado"]
+        F3["Palabras Clave<br>de Función por residuo (domain, fold, active site)"]
+        F4["Prediccón de clase de estructura secundaria por residuo (SS8), de su exposición al solvente (SASA), etc."]
+        end
+    end
+
+    %% Conexiones del Flujo
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B1
+    B1 --> B2
+    
+    B2 --> C1
+    A5 -.-> C1
+    C1 --> C2
+    C2 --> C3
+
+    C3 --> D1
+    C3 --> D2
+    C3 --> D3
+    C3 --> D4
+
+    D2 --> E1
+    D3 --> E2
+
+    D1 --> F1
+    D4 --> F4
+    E1 --> F2
+    E2 --> F3
+
+    %% Estilos
+    style A5 fill:#f9f,stroke:#333,stroke-width:2px
+    style B2 fill:#bdf,stroke:#333,stroke-width:2px
+    style C3 fill:#bdf,stroke:#333,stroke-width:2px
+    style E1 fill:#ff9,stroke:#333,stroke-width:2px
+    style E2 fill:#ff9,stroke:#333,stroke-width:2px
+    classDef padding stroke:none,fill:none
+    classDef padding2 stroke:none,fill:none
+    classDef padding3 stroke:none,fill:none
+    classDef padding4 stroke:none,fill:none
+    classDef padding5 stroke:none,fill:none
+    classDef padding6 stroke:none,fill:none
+    classDef padding7 stroke:none,fill:none
+
+    class padding4 padding
+
+    class padding5 padding
+    class padding6 padding
+    class padding7 padding
+
+    class padding2 padding
+    class padding3 padding
+    class padding padding
+    linkStyle 6 stroke-width:2px,fill:none,stroke:red,stroke-dasharray: 3 3;

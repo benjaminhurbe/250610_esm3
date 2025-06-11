@@ -1,0 +1,7 @@
+flowchart LR
+    A["Secuencia WT"] --> B["Enmascarar posición de mutación"]
+    B --> C["Entrada a ESM3 (MLM): <br>MDK<b>[mask]</b>YSIGL"]
+    C --> D["Obtener logits por aminoácido para esa posición:<br>Logit(a/contexto), a E {A,...,Y}"]
+    D --> E["Calcular Fitness = logit(mutante) – logit(WT)"]
+    E --> F["Negativo: Mutación es desventajosa comparada con el WT<br>Positivo: Mutación es desventajosa comparada con el WT "]
+    F --> G["Métricas: Spearman ρ, AUC, MCC, NDCG, Top K Recall<br>En nuestro caso: correlación entre diferencia de logits y fitness real"]
