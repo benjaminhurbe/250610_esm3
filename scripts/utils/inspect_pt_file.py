@@ -5,7 +5,7 @@ Este script inspecciona un archivo .pt que contiene embeddings de tokens extraí
 """
 
 # Ruta al archivo .pt
-pt_file = "/media/nova/datos/diego/test/250610_esm3/results/embeddings_avg/batch_0.pt"
+pt_file = "/media/nova/datos/proj_esm3_proof/250610_esm3/results/embeddings_token_final/concatenated_embeddings_final.pt"
 
 # Cargar el contenido a un diccionario, que es data
 data = torch.load(pt_file)

@@ -39,9 +39,9 @@ if __name__ == "__main__":
         description="Mergea múltiples archivos .pt de embeddings token-level en uno solo"
     )
     parser.add_argument("input_dir", help="Directorio con archivos .pt")
-    #en este caso es   /media/nova/datos/diego/test/250610_esm3/results/embeddings_token 
+    #en este caso es   ../../results/embeddings_token 
     parser.add_argument("output_pt", help="Ruta de salida para el .pt combinado")
-    # en este caso es   /media/nova/datos/diego/test/250610_esm3/results/embeddings_token/concatenated_embeddings_final.pt
+    # en este caso es   ../../results/embeddings_token_final/concatenated_embeddings_final.pt
     parser.add_argument(
         "--overwrite", "-f", action="store_true",
         help="Sobrescribir output_pt si ya existe"

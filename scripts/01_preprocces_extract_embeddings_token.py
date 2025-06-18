@@ -1,5 +1,4 @@
 #!/home/nova/anaconda3/envs/esm3/bin/python
-## OJO BENJA: ESTE SCRIPT CONTIENE EL CONTENIDO QUE ANTES TENÍA EL SCRIPT extract_token_embeddings_split.py
 
 import sys
 import os
@@ -11,7 +10,7 @@ from esm.models.esm3 import ESM3
 from esm.sdk.api import ESMProtein, LogitsConfig
 
 assert len(sys.argv) >= 2, "Usage: python extract_token_embeddings_split.py <csv_file>"
-# Rutas: es el file "/media/nova/datos/diego/test/test_ad/250610_esm3/data/A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv"
+#RUTA ES: /media/nova/datos/proj_esm3_proof/250610_esm3/data/A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv
 csv_path = sys.argv[1]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,12 +29,17 @@ df = pd.read_csv(csv_path)
 assert "sequence" in df.columns
 sequences = df["sequence"].tolist()
 
-output_dir  = "/media/nova/datos/diego/test/test_ad/250610_esm3/results/embeddings_token"
+output_dir  = "../results/embeddings_token"
 os.makedirs(output_dir, exist_ok=True)
 
 batch_size = 1000
-for start in tqdm(range(0, len(sequences), batch_size)):
-    chunk = sequences[start:start + batch_size]
+total_sequences = len(sequences)
+num_batches = (total_sequences + batch_size - 1) // batch_size  # Cálculo correcto de batches
+
+for batch_idx in tqdm(range(num_batches)):
+    start = batch_idx * batch_size
+    end = min(start + batch_size, total_sequences)  # Asegura no exceder el límite
+    chunk = sequences[start:end]
     token_map = {}
 
     for seq in chunk:
