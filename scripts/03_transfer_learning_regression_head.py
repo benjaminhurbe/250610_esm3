@@ -1,7 +1,4 @@
 #!/usr/bin/env python
-
-# El log de este script se movió al directorio ../logs 
-
 # coding: utf-8
 
 # # Avance 4: Fine-tuning del modelo ESM3. 
