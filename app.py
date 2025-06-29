@@ -8,9 +8,9 @@ Streamlit · ESM-3 + Light-Attention Regressor
 * Devuelve: pred_scaled, –log10 Kd (desnormalizado si aplica), Kd (M y nM) e interpretación
 """
 import os
-import math, joblib, torch, streamlit as st
+import joblib, torch, streamlit as st
 from pathlib import Path
-from esm.models.esm3 import ESM3
+import esm
 from esm.sdk.api import ESMProtein, LogitsConfig
 from scripts.modelo_esm3_regresion import ESM3Regressor   # mi clase
 from huggingface_hub import login
@@ -30,11 +30,8 @@ USE_ATTENTION = True
 # ──────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_esm3():
-    hf_token = os.getenv("HF_TOKEN") or st.secrets.get("esm", None)
-    if hf_token:
-        login(hf_token, add_to_git_credential=False)
-    model = ESM3.from_pretrained("esm3-open").to(DEVICE)
-    model.eval()
+    token = os.getenv("ESM_API_TOKEN") or st.secrets.get("esm")
+    model = esm.sdk.client("esm3-small-2024-08", token=token)
     logits_cfg = LogitsConfig(
         sequence=True,
         return_embeddings=True,
@@ -65,10 +62,10 @@ def compute_embedding(seq: str):
     seq = seq.replace(" ", "").upper()
     with torch.no_grad():
         protein = ESMProtein(sequence=seq)
-        inp     = model.encode(protein).to(DEVICE)          # [1, L]  tokens
+        inp     = model.encode(protein).to(DEVICE)         # [1, L]  tokens
         out     = model.logits(inp, logits_cfg)
         emb_LD  = out.embeddings.squeeze(0)                 # [L, D=1536]
-    return emb_LD.unsqueeze(0)                              # [1, L, D]
+    return emb_LD.unsqueeze(0).float()                              # [1, L, D]
 
 # ──────────────────────────────────────────
 # 4) Utilidades Kd
