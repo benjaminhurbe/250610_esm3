@@ -1,6 +1,6 @@
 streamlit==1.45.0
 esm
-torch==2.7.1
+torch
 huggingface_hub==0.33.1
 joblib==1.5.1
 numpy==2.1.3
