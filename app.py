@@ -12,7 +12,9 @@ import math, joblib, torch, streamlit as st
 from pathlib import Path
 from esm.models.esm3 import ESM3
 from esm.sdk.api import ESMProtein, LogitsConfig
-from scripts.modelo_esm3_regresion import ESM3Regressor   # ← tu clase
+from scripts.modelo_esm3_regresion import ESM3Regressor   # mi clase
+from huggingface_hub import login
+
 
 # ──────────────────────────────────────────
 # CONFIG
