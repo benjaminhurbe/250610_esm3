@@ -7,7 +7,7 @@ Streamlit · ESM-3 + Light-Attention Regressor
 * Pasa por tu cabeza de regresión
 * Devuelve: pred_scaled, –log10 Kd (desnormalizado si aplica), Kd (M y nM) e interpretación
 """
-
+import os
 import math, joblib, torch, streamlit as st
 from pathlib import Path
 from esm.models.esm3 import ESM3
@@ -30,6 +30,9 @@ USE_ATTENTION = True
 # ──────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def load_esm3():
+    hf_token = os.getenv("HF_TOKEN") or st.secrets.get("esm", None)
+    if hf_token:
+        login(hf_token, add_to_git_credential=False)
     model = ESM3.from_pretrained("esm3-open").to(DEVICE)
     model.eval()
     logits_cfg = LogitsConfig(
