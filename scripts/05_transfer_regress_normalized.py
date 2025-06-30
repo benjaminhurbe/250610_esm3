@@ -69,14 +69,20 @@ torch.manual_seed(42)
 #  Dataset
 # ────────────────────────────────────────────────────────────────────────
 class ProteinDataset(Dataset):
-    """Devuelve (sequence_id, kd_scaled)."""
-    def __init__(self, df):
-        self.df = df
+    """Devuelve (emb_tensor, kd_scaled)."""
+    def __init__(self, df, emb_dict):
+        self.df = df.reset_index(drop=True)
+        self.emb_dict = emb_dict
     def __len__(self):
         return len(self.df)
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        return row["sequence"], torch.tensor(row["kd_scaled"], dtype=torch.float32)
+        seq_id = row["sequence"]
+        kd_scaled = torch.tensor(row["kd_scaled"], dtype=torch.float32)
+        emb = self.emb_dict[seq_id]         # [L, D]
+        emb = emb.unsqueeze(0)              # [1, L, D], igual que el otro script
+        return emb.to(DEVICE), kd_scaled.to(DEVICE)
+
 
 # ────────────────────────────────────────────────────────────────────────
 #  1) Cargar y normalizar Kd
@@ -89,18 +95,17 @@ df = (
 train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
 log.info(f"Train: {len(train_df)} | Test: {len(test_df)}")
 
+# —————————————————————————————————————————————
+# Aquí va la única normalización de kd
 scaler = StandardScaler()
 train_df["kd_scaled"] = scaler.fit_transform(train_df[["kd"]])
-test_df ["kd_scaled"] = scaler.transform(   test_df [["kd"]])
-
+test_df["kd_scaled"]  = scaler.transform(test_df[["kd"]])
 joblib.dump(scaler, SCALER_PATH)
 log.info(f"Scaler normalizado guardado → {SCALER_PATH}")
+# —————————————————————————————————————————————
 
-train_dl = DataLoader(ProteinDataset(train_df), batch_size=BATCH_SIZE, shuffle=True)
-test_dl  = DataLoader(ProteinDataset(test_df),  batch_size=BATCH_SIZE, shuffle=False)
-
-# ────────────────────────────────────────────────────────────────────────
-#  2) Cargar embeddings precalculados
+# # ────────────────────────────────────────────────────────────────────────
+# 1) Cargar embeddings precalculados
 # ────────────────────────────────────────────────────────────────────────
 cands = sorted(EMBED_DIR.glob("concatenated_*.pt"))
 if not cands:
@@ -111,12 +116,15 @@ log.info(f"Cargando embeddings de: {EMBED_PATH}")
 EMBED_DICT = torch.load(EMBED_PATH, map_location="cpu")
 log.info(f"→ {len(EMBED_DICT)} secuencias en cache")
 
-def embed_batch_from_cache(seq_ids):
-    """
-    Devuelve tensor [B, 1, D]. Inserta seq_len=1 para la capa de atención.
-    """
-    embs = torch.stack([EMBED_DICT[s] for s in seq_ids])  # [B, D]
-    return embs.unsqueeze(1).to(DEVICE)                   # [B, 1, D]
+# ────────────────────────────────────────────────────────────────────────
+# 3) Dataset & DataLoader
+# ────────────────────────────────────────────────────────────────────────
+train_ds = ProteinDataset(train_df, EMBED_DICT)
+test_ds  = ProteinDataset(test_df,  EMBED_DICT)
+
+train_dl = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
+test_dl  = DataLoader(test_ds,  batch_size=BATCH_SIZE, shuffle=False)
+# emb_batch tendrá forma [B, 1, L, D]
 
 # ────────────────────────────────────────────────────────────────────────
 #  3) Instanciar modelo
@@ -134,30 +142,24 @@ for epoch in range(1, EPOCHS + 1):
     # ——— Train ——————————————————————————————————————————————————————
     regressor.train()
     running_loss = 0.0
-    for seq_ids, kd_scaled in tqdm(train_dl, desc=f"Epoch {epoch} [Train]"):
-        kd_scaled = kd_scaled.to(DEVICE)
-        embeds    = embed_batch_from_cache(list(seq_ids))
-        preds     = regressor(embeds).squeeze(-1)
-
+    for emb_batch, kd_scaled in tqdm(train_dl, desc=f"Epoch {epoch} [Train]"):
+        # emb_batch: [B, 1, L, D], kd_scaled: [B]
+        preds = regressor(emb_batch).squeeze(-1)  # [B]
         loss = loss_fn(preds, kd_scaled)
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        running_loss += loss.item()
-    train_losses.append(running_loss / len(train_dl))
+        running_loss += loss.item() * emb_batch.size(0)
+    train_losses.append(running_loss / len(train_dl.dataset))
 
     # ——— Eval ——————————————————————————————————————————————————————
     regressor.eval()
     preds_orig, targets_orig = [], []
     with torch.no_grad():
-        for seq_ids, kd_scaled in test_dl:
-            kd_s = kd_scaled.to(DEVICE)
-            embs = embed_batch_from_cache(list(seq_ids))
-            p    = regressor(embs).squeeze(-1)
-
-            # Des-escalar a –log10(Kd)
-            p_np = p.cpu().numpy().reshape(-1, 1)
-            k_np = kd_s.cpu().numpy().reshape(-1, 1)
+        for emb_batch, kd_scaled in test_dl:
+            p = regressor(emb_batch).squeeze(-1)
+            p_np = p.cpu().numpy().reshape(-1,1)
+            k_np = kd_scaled.cpu().numpy().reshape(-1,1)
             orig_p = scaler.inverse_transform(p_np).flatten()
             orig_k = scaler.inverse_transform(k_np).flatten()
 
@@ -204,17 +206,18 @@ log.info(f"Modelo normalizado guardado en {MODEL_SAVE_PATH}")
 #  6) Exportar CSV de predicciones en test
 # ────────────────────────────────────────────────────────────────────────
 regressor.eval()
-out_df = test_df.copy().reset_index(drop=True)
-preds_scaled, preds_kd = [], []
+out_df = test_df.reset_index(drop=True).copy()
+all_preds_scaled, all_kd = [], []
 with torch.no_grad():
-    for seq, kd in zip(out_df["sequence"], out_df["kd"]):
-        emb      = embed_batch_from_cache([seq])
-        p_scaled = regressor(emb).item()
-        p_kd     = scaler.inverse_transform([[p_scaled]])[0,0]
-        preds_scaled.append(p_scaled)
-        preds_kd.append(p_kd)
-
-out_df["pred_scaled"] = preds_scaled
+    for emb_batch, kd_scaled in test_dl:
+        p_scaled = regressor(emb_batch).cpu().numpy()  # [B]
+        all_preds_scaled.extend(p_scaled.tolist())
+        all_kd.extend(kd_scaled.cpu().numpy().tolist())
+# desescalar todo de golpe
+preds_kd = scaler.inverse_transform(
+    np.array(all_preds_scaled).reshape(-1,1)
+).flatten()
+out_df["pred_scaled"] = all_preds_scaled
 out_df["pred_kd"]     = preds_kd
 
 csv_path = RESULTS_DIR / "test_predictions_normalized.csv"
