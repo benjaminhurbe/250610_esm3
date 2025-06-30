@@ -24,10 +24,8 @@ EMBED_DIM     = 1536
 REG_WEIGHTS   = Path("model/esm3_regressor_kd_normalized.pt")
 SCALER_PATH   = Path("model/kd_scaler_normalized.joblib")    # whatevert path beacuse in this case there is no scaler
 USE_ATTENTION = True
-
+#Semilla para asegurar reproducibilidad
 torch.manual_seed(42)
-
-
 # ──────────────────────────────────────────
 # 1) Carga perezosa de ESM-3
 # ──────────────────────────────────────────
