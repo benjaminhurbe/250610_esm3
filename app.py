@@ -92,16 +92,7 @@ def predict_training_format(sequence):
     
     return pred_scaled, pred_kd, emb.shape
 
-def predict_inference_format(sequence):
-    """Usa el formato del script imperativo: [1,1, seq_len, embed_dim]"""
-    emb = embed_sequence(sequence).unsqueeze(0).unsqueeze(1)  # [1,1, seq_len, embed_dim]
-    
-    regressor, scaler = load_regressor()
-    with torch.no_grad():
-        pred_scaled = regressor(emb).item()
-        pred_kd = scaler.inverse_transform([[pred_scaled]])[0, 0] if scaler else pred_kd
-    
-    return pred_scaled, pred_kd, emb.shape
+
 
 # ──────────────────────────────────────────
 # 5) Utilidades Kd
@@ -130,8 +121,7 @@ st.title("🧬 ESM3-open Local · Predicción de Kd")
 
 with st.expander("ℹ️ Información", expanded=True):
     st.markdown("""
-Esta app usa **exactamente el mismo modelo ESM3-open local** y la **misma función 
-embed_sequence** que usaste para entrenar, garantizando embeddings idénticos.
+Esta app utiliza localmente el modelo *esm3-open* localmente para extraer los embeddings de una secuencia de antígeno
 
 **Formatos de tensor probados:**
 - **Entrenamiento**: `[1, seq_len, embed_dim]` - Como en tu loop de entrenamiento
@@ -173,33 +163,6 @@ with col1:
                 kd_m, kd_nM = kd_from_logkd(pred_kd)
                 
                 st.success("✅ Predicción con formato de entrenamiento")
-                st.code(f"Tensor shape: {tensor_shape}")
-                
-                met1, met2 = st.columns(2)
-                with met1:
-                    st.metric("Pred. normalizada", f"{pred_scaled:.4f}")
-                    st.metric("–log₁₀(Kd)", f"{pred_kd:.4f}")
-                with met2:
-                    st.metric("Kd (M)", f"{kd_m:.3e}")
-                    st.metric("Kd (nM)", f"{kd_nM:.1f}")
-                
-                st.markdown(f"**Interpretación:** {interpret_kd(kd_nM)}")
-                
-            except Exception as e:
-                st.error(f"❌ Error en predicción: {e}")
-
-with col2:
-    if st.button("🔧 Predecir (Formato Inferencia)"):
-        if not seq_input.strip():
-            st.warning("⚠️ Introduce una secuencia válida.")
-        else:
-            try:
-                with st.spinner("Calculando embedding con formato inferencia..."):
-                    pred_scaled, pred_kd, tensor_shape = predict_inference_format(seq_input.strip())
-                
-                kd_m, kd_nM = kd_from_logkd(pred_kd)
-                
-                st.info("🔧 Predicción con formato de inferencia")
                 st.code(f"Tensor shape: {tensor_shape}")
                 
                 met1, met2 = st.columns(2)
