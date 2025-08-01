@@ -6,30 +6,30 @@ from tqdm import tqdm
 from esm.models.esm3 import ESM3
 from esm.sdk.api import ESMProtein, LogitsConfig
 
-# Configuración
+# Configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = ESM3.from_pretrained("esm3-open").to(device)
 logits_config = LogitsConfig(
-    sequence=True, #logits en modo secuencia
-    return_embeddings=True,     # Devuelve los embeddings promediados por token
+    sequence=True,              # logits in sequence mode
+    return_embeddings=True,     # Returns token-level embeddings
     return_hidden_states=False
 )
 
-# Ruta al archivo CSV de entrada con columnas: mutant, sequence, DMS_score
+# PATH of the csv input file with columns: mutant, sequence, DMS_score
 csv_path = "/media/nova/datos/diego/test/test_ad/250610_esm3/data/A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv"
-# Ruta de salida a los promedios de embeddings, reusltado comprimido en un tar
+# Output path (results in .tar)
 output_dir = "/media/nova/datos/diego/test/test_ad/250610_esm3/results/embeddings_avg"
 os.makedirs(output_dir, exist_ok=True)
 
-# Verifica que exista la columna 'sequence'
+# Verification of sequence column
 df = pd.read_csv(csv_path)
 assert "sequence" in df.columns, "El archivo CSV debe tener una columna 'sequence'"
 sequences = df["sequence"].tolist()
 
-# Procesar en batches, itero de 1000 en 1000 para evitar problemas de memoria
+# Batch processing
 batch_size = 1000 
 
-#tqdm muestra barra de progreso en el bucle, avanza conforme se procesan los batches
+#tqdm use for progress bar display
 for start in tqdm(range(0, len(sequences), batch_size)):
     chunk = sequences[start:start + batch_size]
     embedding_map = {}
@@ -38,11 +38,11 @@ for start in tqdm(range(0, len(sequences), batch_size)):
         try:
             protein = ESMProtein(sequence=seq)
             encoded = model.encode(protein)
-            logits = model.logits(encoded, logits_config) #obtengo logits/embeddings
-            emb = logits.embeddings.squeeze(0)  # Para tener solo: [seq_len, hidden_size] (elimino primera dimensión de batch)
-            mean_emb = emb.mean(dim=0)          # Calculo vector medio a lo largo de [hidden_size], es decir, promedio los embeddings de todas las posiciones de la secuencia
-            #ES UNA REPRESENTACION GLOBAL, resumen de la proteina entera, util para clustering de secuencias o busqueda de proteinas similares
-            embedding_map[seq] = mean_emb.cpu() #lo muevo a la cpu y almaceno en diccionario embedding_map, bajo la clave de la propia secuencia
+            logits = model.logits(encoded, logits_config) #obtaining of logits/embeddings
+            emb = logits.embeddings.squeeze(0)  # Squeezing to obtain the structure [seq_len, hidden_size]
+            mean_emb = emb.mean(dim=0)          # Computing mean vector across sequence length, averaging all positions to get global representation
+                                                # Useful for clustering or searching for similar proteins.
+            embedding_map[seq] = mean_emb.cpu() # Move to CPU and store in the embedding_map dictionary, using the sequence itself as the key.
         except Exception as e:
             print(f"Error en secuencia: {seq[:10]}... {e}")
 
