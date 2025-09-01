@@ -3,8 +3,17 @@ import pandas as pd
 import os
 from tqdm import tqdm
 
+from huggingface_hub import login
+
 from esm.models.esm3 import ESM3
 from esm.sdk.api import ESMProtein, LogitsConfig
+
+# Autentication of huggingface_hub
+# Add your token to the environment variable HF_TOKEN
+# Run the login() line ONLY the first time on a new machine/environment
+# After the model is cached and credentials are saved, you can keep it commented
+
+# login(token=os.getenv("HF_TOKEN"))
 
 # Configuration
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -16,9 +25,9 @@ logits_config = LogitsConfig(
 )
 
 # PATH of the csv input file with columns: mutant, sequence, DMS_score
-csv_path = "/media/nova/datos/diego/test/test_ad/250610_esm3/data/A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv"
+csv_path = "../data/A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv"
 # Output path (results in .tar)
-output_dir = "/media/nova/datos/diego/test/test_ad/250610_esm3/results/embeddings_avg"
+output_dir = "../results/embeddings_avg"
 os.makedirs(output_dir, exist_ok=True)
 
 # Verification of sequence column
