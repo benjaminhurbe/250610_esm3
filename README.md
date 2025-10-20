@@ -1,42 +1,48 @@
-# 🧬 ESM3: Pipeline de procesamiento de embeddings de proteínas
+# 🧬 ESM3: Protein Embedding Processing Pipeline
 
-Este proyecto permite extraer embeddings y aplicar un análisis zero-shot a un dataset de 65 000 secuencias mutantes del antígeno CR9114 junto a un valor experimental de Kd de unión a Hemaglutinina subtipo H1. Los embeddings son extraidos a partir de las secuencias de aminoácidos usando el modelo [`esm3-open`](https://huggingface.co/EvolutionaryScale/esm3-open) de Evolutionary Scale, ejecutado localmente con GPU (si está disponible).
+This project enables the extraction of embeddings and the application of zero-shot analysis on a dataset of **65,000 mutant sequences** of the **CR9114 antigen**, together with an experimental **Kd binding value** to **Hemagglutinin subtype H1**.  
+Embeddings are generated from amino acid sequences using the [`esm3-open`](https://huggingface.co/EvolutionaryScale/esm3-open) model by **Evolutionary Scale**, executed locally with GPU support if available.
 
-## 📁 Estructura del proyecto
+---
+
+## 📁 Project Structure
+
 
 250610_esm3/
 
 ├── data/
 
-│   └── A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv  # Archivo con las secuencias
+│   └── A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv  # File containing amino acid sequences
 
 ├── DMS_ids/
 
-│   └── múltiples bases de datos de proteingym (*.csv)      # Bases de datos de DMS
+│   └── múltiples bases de datos de proteingym (*.csv)      # DMS benchmark databases
 
 ├── reference_files/
 
-│   └── clinical_substitutions.csv                          # csv's referencia de ProteinGym
+│   └── clinical_substitutions.csv                          # ProteinGym reference CSV
 
-│   └── clinical_indels.csv                                 # contienen la proteina target
+│   └── clinical_indels.csv                                 # Contain the target protein
 
-│   └── DMS_indels.csv                                      # de ensayos DMS de indels y sustituciones
+│   └── DMS_indels.csv                                      # DMS datasets of indels and substitutions
 
-│   └── DMS_substitutions.csv                               # en esta base de datos se integró la de CR9114
+│   └── DMS_substitutions.csv                               # Integrated CR9114 dataset
 
 ├── scripts/
 
-│   └── 01_preprocces_embeddings.py                         # Script de extracción de embeddings
+│   └── 01_preprocces_embeddings.py                         # Embedding extraction script
 
 
-## ⚙️ Requisitos
+## ⚙️ Requirements
 
-- Python 3.11 (recomendado con Conda)
-- PyTorch (con soporte para CUDA si usas GPU)
-- ESM de Evolutionary Scale (https://github.com/EvolutionaryScale/esm)
-- pandas, tqdm
+- Python 3.11 (recommended with Conda)  
+- PyTorch (with CUDA support for GPU)  
+- ESM by Evolutionary Scale ([GitHub link](https://github.com/EvolutionaryScale/esm))  
+- pandas, tqdm  
 
-### 🧪 Instalación del entorno
+---
+
+### 🧪 Environment Setup
 
 ```bash
 conda create -n esm3 python=3.11
@@ -46,12 +52,12 @@ pip install torch pandas tqdm
 pip install 'esm @ git+https://github.com/EvolutionaryScale/esm.git'
 ```
 
-## 📥 Datos de entrada
+## 📥 Input Data
 
-El archivo CSV debe contener al menos una columna llamada `sequence`, con las secuencias de aminoácidos a embeber. En nuestro caso, también tiene un `DMS_ID` y un valor `DMS` (que en realidad representa el Kd) para su uso en los benchmarks trabajados por ProteinGyM.
+The CSV file must contain at least one column named `sequence`, with the amino acid sequences to be embedded.  
+In this project, it also includes a `DMS_ID` and a `DMS` value (which represents the Kd) for use in the benchmarks developed by ProteinGym.
 
-Ejemplo:
-
+Example:
 ```csv
 sequence
 ARNDCEQGHILKMFPSTWYV
@@ -59,58 +65,62 @@ AGPLMDKR...
 ...
 ```
 
-## ▶️ Ejecución de scripts
+## ▶️ Script Execution
 
-### Paso 1: Extraer embeddings
+### Step 1: Extract Embeddings
 
-El siguiente script realiza:
+This script performs the following:
 
-- Calcula el promedio de los embeddings de todos los aminoácidos de una secuencia.
-- El resultado es un solo vector de tamaño [1536] por secuencia.
-- Es una representación global de la proteína entera, capturando información de estructura, función y evolución.
+- Computes the **average of the embeddings** across all amino acids in a sequence.  
+- The result is a single vector of size [1536] per sequence.  
+- It provides a **global representation** of the entire protein, capturing information about structure, function, and evolution.
+
 
 ```bash
 python scripts/01_preprocces_extract_embeddings_avg.py
 ```
-El siguiente script realiza lo siguiente:
 
-* Extrae los **embeddings individuales para cada aminoácido** de la secuencia.
-* No se promedian: se conserva la matriz [L, 1536] (L = longitud de la secuencia).
-* Incluye señales combinadas de estructura, función, ubicación relativa, etc.
-* Las dimensiones generadas serán: `token_map[seq] = emb  # shape: [seq_len, 1536]`
+The next script performs the following:
 
-Esto generará archivos .pt en la carpeta embeddings_avg/, cada uno conteniendo un diccionario `{secuencia: vector_emb}`.
+- Extracts the **individual embeddings for each amino acid** in the sequence.  
+- They are **not averaged** — the resulting matrix is [L, 1536], where *L* is the sequence length.  
+- These embeddings combine structural, functional, and positional signals.  
+- The generated dimensions are: `token_map[seq] = emb  # shape: [seq_len, 1536]`.
 
-Si deseas guardar los embeddings por tokens individuales en lugar del promedio, ejecuta:
+This process generates `.pt` files inside the `embeddings_avg/` folder, each containing a dictionary of the form `{sequence: vector_emb}`.
+
+If you prefer to save embeddings per token rather than averaged, run the corresponding script.
 
 ```bash
 python scripts/01_preprocces_extract_embeddings_token.py
 ```
+---
 
-### Paso 2: Evaluar con zero-shot scoring
+### Step 2: Evaluate with Zero-Shot Scoring
 
-Este paso procesa las secuencias usando el modelo esm3-open y evalúa diferencias entre el aminoácido wild-type y el mutante, con base en el archivo de referencia `./reference_files/DMS_substitutions.csv`. Luego se comparan esos resultados con los scores experimentales (`DMS_score`, equivalente a Kd) mediante correlación de Spearman.
-
-Para ejecutar:
+This step processes the sequences using the **esm3-open** model and evaluates differences between wild-type and mutant amino acids, based on the reference file `./reference_files/DMS_substitutions.csv`.  
+Then, the results are compared with the experimental scores (`DMS_score`, equivalent to Kd) using **Spearman correlation**.
 
 ```bash
 python ./scripts/02_compute_zero_shot.py
 ```
-Nota: El proceso se implementa en `./scripts/zero_shot/compute_fitness.py`, y `02_compute_zero_shot.py` se encarga de establecer los parámetros modificables según la base de datos o caso evaluado. Se puede modificar según el caso de análisis
+Nota: The implementation is contained in `./scripts/zero_shot/compute_fitness.py`, and the wrapper script `02_compute_zero_shot.py` manages customizable parameters depending on the dataset or experiment being evaluated.  
+You can modify it according to the specific analysis case.
 
-## 💡 Notas útiles
 
-- El modelo `esm3-open` se descargará automáticamente desde Hugging Face la primera vez que se use.
-- Puedes ajustar el `batch_size` en los scripts del Paso 1 según tu GPU/CPU.
-- Para cargar embeddings .pt:
+## 💡 Useful Notes
+
+- The `esm3-open` model will be automatically downloaded from **Hugging Face** the first time it is used.  
+- You can adjust the `batch_size` parameter in Step 1 scripts according to your GPU or CPU capacity.  
+- To load `.pt` embeddings, simply use the corresponding PyTorch function.
 
 ```python
 import torch
 data = torch.load("path/to/{nombre_archivo}.pt")
 ```
 
-## 📌 Créditos
+## 📌 Credits
 
-- Modelo: `esm3-open` de Evolutionary Scale
-- Scripts inspirados en benchmarks de: `ProteinGym`
-- Proyecto personalizado por el equipo de investigación
+- Model: `esm3-open` by **Evolutionary Scale**  
+- Scripts inspired by benchmarks from **ProteinGym**  
+- Custom project developed by the **research team**
