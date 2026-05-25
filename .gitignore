@@ -1,2 +1,4 @@
 results/emb*
 DMS_ids/
+.ipynb_checkpoints/
+.Rhistory

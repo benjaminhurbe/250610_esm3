@@ -2,6 +2,7 @@ import torch
 import pandas as pd
 import os
 from tqdm import tqdm
+import warnings
 
 from huggingface_hub import login
 
@@ -13,16 +14,31 @@ from esm.sdk.api import ESMProtein, LogitsConfig
 # Run the login() line ONLY the first time on a new machine/environment
 # After the model is cached and credentials are saved, you can keep it commented
 
-# login(token=os.getenv("HF_TOKEN"))
+token = os.environ.get("HF_TOKEN")
 
-# Configuration
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = ESM3.from_pretrained("esm3-open").to(device)
+# LOADING MODEL REMOTE FROM HF
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# model = ESM3.from_pretrained("esm3-open").to(device)
 logits_config = LogitsConfig(
     sequence=True,              # logits in sequence mode
     return_embeddings=True,     # Returns token-level embeddings
     return_hidden_states=False
 )
+
+# LOADING MODEL LOCALLY 
+# Usa la ruta exacta del snapshot descargado
+os.environ["HUGGINGFACE_HUB_CACHE"] = "/tf/mnt/benjamin/esm/250610_esm3/esm_model/hub"
+os.environ["HF_HUB_OFFLINE"] = "1"   # fuerza modo offline
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+model = ESM3.from_pretrained("esm3-open").to(device)
+
+warnings.filterwarnings("ignore",
+                        message="You are using `torch.load` with `weights_only=False`",
+                        category=FutureWarning,
+                        module=r"esm\..*")
+
+print("✅ Model loaded on:", device)
 
 # PATH of the csv input file with columns: mutant, sequence, DMS_score
 csv_path = "../data/A0A1K4LHP2_CR9114_Phillips_2021_updated_target.csv"

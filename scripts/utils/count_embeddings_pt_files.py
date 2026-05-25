@@ -3,7 +3,8 @@ import torch
 from collections import defaultdict
 
 # Configuración
-EMBEDDINGS_DIR = "/media/nova/datos/proj_esm3_proof/250610_esm3/results/embeddings_token"
+#EMBEDDINGS_DIR = "/media/nova/datos/proj_esm3_proof/250610_esm3/results/embeddings_token"
+EMBEDDINGS_DIR = "../../results/embeddings_avg"
 CONCATENATED_FILE = "concatenated_embeddings_final.pt"
 
 # Contadores
